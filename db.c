@@ -95,7 +95,7 @@ void serializeRow(Row* source,void* dest){
 
 void deserializeRow(void* source,Row* dest){
     memcpy(&(dest->id),source+ID_OFFSET,ID_SIZE);
-    memcpy(&(dest->username),source+USERNAME_OFFSET,USERNAME_OFFSET);
+    memcpy(&(dest->username),source+USERNAME_OFFSET,USERNAME_SIZE);
     memcpy(&(dest->email),source+EMAIL_OFFSET,EMAIL_SIZE);
 }
 
@@ -114,7 +114,7 @@ void* rowSlot(Table* table,uint32_t rowNum){
 
 void printPrompt(){printf("db >");}
 void printRow(Row* row){
-    printf("%d, %s, %s \n",row->id,row->username,row->email);
+    printf("(%d, %s, %s)\n",row->id,row->username,row->email);
 }
 
 size_t getLine(char **lineptr, size_t *n, FILE *stream) {
@@ -285,7 +285,7 @@ int main(){
 
         switch(executeStatement(&statement,table)){
             case(EXECUTE_SUCCESS):
-                printf("Executed \n");
+                printf("Executed.\n");
                 break;
             case(EXECUTE_TABLE_FULL):
                 printf("Error :Table FUll \n");
