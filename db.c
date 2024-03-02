@@ -5,7 +5,7 @@
 #include <stdint.h>
 
 #define COLUMN_USERNAME_SIZE 32
-#define COLUMN_EMAIL_SIZE 225
+#define COLUMN_EMAIL_SIZE 255
 #define sizeOfAttribute(Struct, Attribute) sizeof(((Struct*)0)->Attribute)
 #define TABLE_MAX_PAGES 100
 
@@ -29,7 +29,7 @@ typedef enum {
     META_COMMAND_UNRECOGNIZED_COMMAND
 } MetaCommandResult;
 
-typedef enum { PREPARE_SUCCESS, PREPARE_UNRECOGNIZED_STATEMENT, PREPARE_SYNTAX_ERROR } PrepareResult;
+typedef enum { PREPARE_SUCCESS, PREPARE_UNRECOGNIZED_STATEMENT, PREPARE_SYNTAX_ERROR,PREPARE_STRING_TOO_LONG } PrepareResult;
 
 typedef enum { STATEMENT_INSERT, STATEMENT_SELECT } StatementType;
 
@@ -40,8 +40,8 @@ typedef enum{
 
 typedef struct{
     uint32_t id;
-    char username[COLUMN_USERNAME_SIZE];
-    char email[COLUMN_EMAIL_SIZE];
+    char username[COLUMN_USERNAME_SIZE+1];
+    char email[COLUMN_EMAIL_SIZE+1];
 }Row;
 
 typedef struct {
@@ -200,16 +200,37 @@ MetaCommandResult doMetaCommand(InputBuffer* inputBuffer){
     }
 }
 
+
+PrepareResult prepareInsert(InputBuffer* inputBuffer,Statement* statement){
+    char* keyword = strtok(inputBuffer->buffer," ");
+    char* id_string = strtok(NULL," ");
+    char* username = strtok(NULL," ");
+    char* email = strtok(NULL," ");
+
+    if(id_string==NULL || id_string==NULL || username==NULL || email==NULL){
+        return PREPARE_SYNTAX_ERROR;
+    }
+
+    int id = atoi(id_string);
+
+    if(strlen(username)>COLUMN_USERNAME_SIZE){
+        return PREPARE_STRING_TOO_LONG;
+    }
+
+    if(strlen(email)>COLUMN_EMAIL_SIZE){
+        return PREPARE_STRING_TOO_LONG;
+    }
+
+    statement->rowToInsert.id = id;
+    strcpy(statement->rowToInsert.username,username);
+    strcpy(statement->rowToInsert.email,email);
+
+    return PREPARE_SUCCESS;
+}
+
 PrepareResult prepareStatement(InputBuffer* inputBuffer,Statement* statement){
     if(strncmp(inputBuffer->buffer,"insert",6)==0){
-        statement->type = STATEMENT_INSERT;
-        int argsAssigned = sscanf(inputBuffer->buffer,"insert %d %s %s",
-                                  &(statement->rowToInsert.id),&(statement->rowToInsert.username),
-                                  &(statement->rowToInsert.email));
-        if(argsAssigned<3){
-            return PREPARE_SYNTAX_ERROR;
-        }
-        return PREPARE_SUCCESS;
+        return prepareInsert(inputBuffer,statement);
     }
     if(strncmp(inputBuffer->buffer,"select",6)==0){
         statement->type = STATEMENT_SELECT;
@@ -218,6 +239,7 @@ PrepareResult prepareStatement(InputBuffer* inputBuffer,Statement* statement){
     return PREPARE_UNRECOGNIZED_STATEMENT;
 
 }
+
 
 ExecuteResult executeInsert(Statement* statement,Table* table){
     if(table->num_rows>= TABLE_MAX_ROWS){
@@ -278,6 +300,9 @@ int main(){
                 continue;
             case(PREPARE_SYNTAX_ERROR):
                 printf("Syntax Error");
+                continue;
+            case(PREPARE_STRING_TOO_LONG):
+                printf("String too long.\n");
                 continue;
         }
 

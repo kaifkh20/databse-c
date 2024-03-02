@@ -24,6 +24,39 @@ test("Check for command 1",async()=>{
     "db >"])
 })
 
+test("Check for long values",async()=>{
+    const long_user = "a".repeat(32)
+    const long_email = "a".repeat(255)
+    const commands = [`insert 1 ${long_user} ${long_email}`,"select",".exit"]
+
+    const output = await runScript(commands)
+
+    expect(output).toEqual([
+        "db >Executed.",
+        `db >(1, ${long_user}, ${long_email})`,
+        "Executed.",
+        "db >"
+    ])
+})
+
+test("Check of overflow values",async()=>{
+   const long_username = "a".repeat(33)
+  const long_email = "a".repeat(256)
+  const commands = [
+    `insert 1 ${long_username} ${long_email}`,
+    "select",
+    ".exit",
+  ]
+
+  const output = await runScript(commands)
+
+  expect(output).toEqual([
+    "db >String too long.",
+    "db >Executed.",
+    "db >",
+  ])
+})
+
 test("2+2",()=>{
     expect(2+2).toBe(4)
 })
