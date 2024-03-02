@@ -57,6 +57,22 @@ test("Check of overflow values",async()=>{
   ])
 })
 
+test("Check for negative id",async()=>{
+    // const id = -1;
+    const commands = [
+        `insert -1 username email`,
+        ".exit"
+    ]
+
+    const output = await runScript(commands)
+
+    expect(output).toEqual([
+        "db >ID must be positive.",
+        "Executed.",
+        "db >"
+    ])
+})
+
 test("2+2",()=>{
     expect(2+2).toBe(4)
 })

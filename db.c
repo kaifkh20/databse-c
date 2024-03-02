@@ -29,7 +29,15 @@ typedef enum {
     META_COMMAND_UNRECOGNIZED_COMMAND
 } MetaCommandResult;
 
-typedef enum { PREPARE_SUCCESS, PREPARE_UNRECOGNIZED_STATEMENT, PREPARE_SYNTAX_ERROR,PREPARE_STRING_TOO_LONG } PrepareResult;
+typedef enum { 
+    PREPARE_SUCCESS, 
+    PREPARE_UNRECOGNIZED_STATEMENT, 
+    PREPARE_SYNTAX_ERROR,
+    PREPARE_STRING_TOO_LONG,
+    PREPARE_NEGATIVE_ID 
+} 
+
+PrepareResult;
 
 typedef enum { STATEMENT_INSERT, STATEMENT_SELECT } StatementType;
 
@@ -213,6 +221,10 @@ PrepareResult prepareInsert(InputBuffer* inputBuffer,Statement* statement){
 
     int id = atoi(id_string);
 
+    if(id<0){
+        return PREPARE_NEGATIVE_ID;
+    }
+
     if(strlen(username)>COLUMN_USERNAME_SIZE){
         return PREPARE_STRING_TOO_LONG;
     }
@@ -304,6 +316,8 @@ int main(){
             case(PREPARE_STRING_TOO_LONG):
                 printf("String too long.\n");
                 continue;
+            case (PREPARE_NEGATIVE_ID):
+                printf("ID must be positive.\n");
         }
 
 
