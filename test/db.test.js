@@ -1,13 +1,16 @@
 import {expect,test} from "bun:test"
 
 async function runScript(commands){
-    const proc = Bun.spawn(["./db"],{stdin:"pipe"})
+    const proc = Bun.spawn(["./db_opt"],{stdin:"pipe"})
     commands.forEach((command)=>{
         proc.stdin.write(`${command}\n`)
     })
     proc.stdin.flush()
     proc.stdin.end()
-    const output = (await new Response(proc.stdout).text()).split("\n")
+    const output = (await new Response(proc.stdout).text())
+
+    await proc.exited
+
     return output
 }
 
@@ -16,9 +19,11 @@ test("Check for command 1",async()=>{
     "select",
     ".exit",]
 
-    const ouput = await runScript(commands)
+    const output = await runScript(commands)
 
-    expect(ouput).toEqual(["db >Executed.",
+    const result = output.split("\n")
+
+    expect(result).toEqual(["db >Executed.",
     "db >(1, user1, person1@example.com)",
     "Executed.",
     "db >"])
@@ -31,7 +36,9 @@ test("Check for long values",async()=>{
 
     const output = await runScript(commands)
 
-    expect(output).toEqual([
+    const result = output.split("\n")
+
+    expect(result).toEqual([
         "db >Executed.",
         `db >(1, ${long_user}, ${long_email})`,
         "Executed.",
@@ -50,7 +57,11 @@ test("Check of overflow values",async()=>{
 
   const output = await runScript(commands)
 
-  expect(output).toEqual([
+    const result = output.split("\n")
+
+
+
+  expect(result).toEqual([
     "db >String too long.",
     "db >Executed.",
     "db >",
@@ -66,11 +77,43 @@ test("Check for negative id",async()=>{
 
     const output = await runScript(commands)
 
-    expect(output).toEqual([
+    const result = output.split("\n")
+
+    expect(result).toEqual([
         "db >ID must be positive.",
         "Executed.",
         "db >"
     ])
+})
+
+
+test("Persistance to disk",async()=>{
+    const commands1 = ["insert 1 user1 person1@example.com",
+    ".exit"]
+
+    const output1 =  await runScript(commands1)
+
+    const result1 = output1.split("\n")
+
+    expect(result1).toEqual([
+        "db >Executed.",
+        "db >",
+    ])
+
+    const commands2 = ["select",
+    ".exit"]
+
+    const output2 = await runScript(commands2)
+
+    const result2 = output2.split("\n")
+
+    expect(result2).toEqual([
+        "db > (1, user1, person1@example.com)",
+        "Executed.",
+        "db > "
+    ])
+
+
 })
 
 test("2+2",()=>{
