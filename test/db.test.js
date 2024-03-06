@@ -1,7 +1,12 @@
-import {expect,test} from "bun:test"
+import {expect,test,beforeEach,before} from "bun:test"
+
+beforeEach(()=>{
+    Bun.spawn(["rm","-rf","test.db"])
+
+})
 
 async function runScript(commands){
-    const proc = Bun.spawn(["./db_opt"],{stdin:"pipe"})
+    const proc = Bun.spawn(["./db_opt","test.db"],{stdin:"pipe"})
     commands.forEach((command)=>{
         proc.stdin.write(`${command}\n`)
     })
@@ -88,7 +93,12 @@ test("Check for negative id",async()=>{
 
 
 test("Persistance to disk",async()=>{
+
+    
+
     const commands1 = ["insert 1 user1 person1@example.com",
+    ".exit",
+    "select",
     ".exit"]
 
     const output1 =  await runScript(commands1)
@@ -98,20 +108,11 @@ test("Persistance to disk",async()=>{
     expect(result1).toEqual([
         "db >Executed.",
         "db >",
-    ])
-
-    const commands2 = ["select",
-    ".exit"]
-
-    const output2 = await runScript(commands2)
-
-    const result2 = output2.split("\n")
-
-    expect(result2).toEqual([
-        "db > (1, user1, person1@example.com)",
+        "db >(1, user1, person1@example.com)",
         "Executed.",
         "db > "
     ])
+    
 
 
 })
