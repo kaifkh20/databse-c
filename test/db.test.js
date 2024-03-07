@@ -6,7 +6,7 @@ beforeEach(()=>{
 })
 
 async function runScript(commands){
-    const proc = Bun.spawn(["./db_opt","test.db"],{stdin:"pipe"})
+    const proc = Bun.spawn(["./db","test.db"],{stdin:"pipe"})
     commands.forEach((command)=>{
         proc.stdin.write(`${command}\n`)
     })
