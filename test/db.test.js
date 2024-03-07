@@ -98,21 +98,32 @@ test("Persistance to disk",async()=>{
 
     const commands1 = ["insert 1 user1 person1@example.com",
     ".exit",
-    "select",
-    ".exit"]
+    ]
 
     const output1 =  await runScript(commands1)
 
     const result1 = output1.split("\n")
 
+    
+
     expect(result1).toEqual([
         "db >Executed.",
         "db >",
-        "db >(1, user1, person1@example.com)",
-        "Executed.",
-        "db > "
+        
     ])
     
+    const commands2 = ["select",
+    ".exit"]
+
+    const output2 = await runScript(commands2)
+
+    const result2 = output2.split("\n");
+
+    expect(result2).toEqual([
+        "db >(1, user1, person1@example.com)",
+        "Executed.",
+        "db >"
+    ])
 
 
 })
