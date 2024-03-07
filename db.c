@@ -201,7 +201,7 @@ void dbClose(Table* table){
 
 Cursor* tableStart(Table* table){
     Cursor* cursor = malloc(sizeof(Cursor));
-    cusor->table = table;
+    cursor->table = table;
     cursor->row_num = 0;
     cursor->endOfTable = (table->num_rows==0);
 
@@ -432,13 +432,13 @@ ExecuteResult executeInsert(Statement* statement,Table* table){
 
 ExecuteResult executeSelect(Statement* statement,Table* table){
     Row row;
-    Cursor* cursor = tableStart(cursor);
+    Cursor* cursor = tableStart(table);
     // for(uint32_t i=0;i<table->num_rows;i++){
     //     deserializeRow(rowSlot(table,i),&row);
     //     printRow(&row);
     // }
 
-    while(!cursor->endOfTable){
+    while(!(cursor->endOfTable)){
         deserializeRow(cursorValue(cursor),&row);
         printRow(&row);
         cursorAdvance(cursor);
