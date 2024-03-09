@@ -128,6 +128,53 @@ test("Persistance to disk",async()=>{
 
 })
 
+test("Prints Constants",async()=>{
+    const commands = [".constants",".exit"]
+    const output = await runScript(commands);
+    const result = output.split("\n");
+
+    expect(result).toEqual([
+      "db >Constants:",
+      "ROW_SIZE: 293",
+      "COMMON_NODE_HEADER_SIZE: 6",
+      "LEAF_NODE_HEADER_SIZE: 10",
+      "LEAF_NODE_CELL_SIZE: 297",
+      "LEAF_NODE_SPACE_FOR_CELLS: 4086",
+      "LEAF_NODE_MAX_CELLS: 13",
+      "db >",
+    ])
+})
+
+test("Printing the structure of one node",async()=>{
+    
+    
+
+    const commands = [
+        "insert 1 user1 user1@gmail.com",
+        "insert 2 user2 user2@gmail.com",
+        "insert 3 user3 user3@gmail.com",
+        ".btree",
+        ".exit"
+    ]
+
+    const output = await runScript(commands)
+    const result = output.split("\n")
+
+    expect(result).toEqual(
+        [
+            "db >Executed.",
+            "db >Executed.",
+            "db >Executed.",
+            "db >Tree:",
+            "leaf (size 3)",
+            "  - 0 : 1",
+            "  - 1 : 2",
+            "  - 2 : 3",
+            "db >"
+        ]
+    )
+})
+
 test("2+2",()=>{
     expect(2+2).toBe(4)
 })

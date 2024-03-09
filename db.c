@@ -216,6 +216,39 @@ void pagerFlush(Pager* pager,uint32_t pageNum){
 
 }
 
+void* getPage(Pager* pager,uint32_t pageNum){
+    if(pageNum>TABLE_MAX_PAGES){
+        printf("Tried to fetch number out of bounds %d\n",TABLE_MAX_PAGES);
+        exit(EXIT_FAILURE);
+    }
+    if(pager->pages[pageNum]==NULL){
+        // Cache Miss Allocate memory and load from file.
+        void* page = malloc(PAGE_SIZE);
+        uint32_t num_pages = pager->fileSize/PAGE_SIZE;
+
+        // We might save a partial page at the end of the file
+        if(pager->fileSize % PAGE_SIZE){
+            num_pages+=1;
+        }
+
+        if(pageNum<=num_pages){
+            lseek(pager->fileDescriptor,pageNum*PAGE_SIZE,SEEK_SET);
+            ssize_t bytesRead = read(pager->fileDescriptor,page,PAGE_SIZE);
+            if(bytesRead==-1){
+                printf("Error reading file:%d\n",errno);
+                exit(EXIT_FAILURE);
+            }
+        }
+       pager->pages[pageNum] = page;
+
+       if(pageNum>=pager->numPages){
+            pager->numPages = pageNum + 1 ;
+       }
+    }
+
+    return pager->pages[pageNum];
+}
+
 Table* dbOpen(const char* filename){
 
     Pager* pager = pagerOpen(filename);
@@ -332,38 +365,7 @@ void deserializeRow(void* source,Row* dest){
     memcpy(&(dest->email),source+EMAIL_OFFSET,EMAIL_SIZE);
 }
 
-void* getPage(Pager* pager,uint32_t pageNum){
-    if(pageNum>TABLE_MAX_PAGES){
-        printf("Tried to fetch number out of bounds %d\n",TABLE_MAX_PAGES);
-        exit(EXIT_FAILURE);
-    }
-    if(pager->pages[pageNum]==NULL){
-        // Cache Miss Allocate memory and load from file.
-        void* page = malloc(PAGE_SIZE);
-        uint32_t num_pages = pager->fileSize/PAGE_SIZE;
 
-        // We might save a partial page at the end of the file
-        if(pager->fileSize % PAGE_SIZE){
-            num_pages+=1;
-        }
-
-        if(pageNum<=num_pages){
-            lseek(pager->fileDescriptor,pageNum*PAGE_SIZE,SEEK_SET);
-            ssize_t bytesRead = read(pager->fileDescriptor,page,PAGE_SIZE);
-            if(bytesRead==-1){
-                printf("Error reading file:%d\n",errno);
-                exit(EXIT_FAILURE);
-            }
-        }
-       pager->pages[pageNum] = page;
-
-       if(pageNum>=pager->numPages){
-            pager->numPages = pageNum + 1 ;
-       }
-    }
-
-    return pager->pages[pageNum];
-}
 
 void* cursorValue(Cursor* cursor){
     // uint32_t rowNum = cursor->row_num;
@@ -424,6 +426,15 @@ void leafNodeInsert(Cursor* cursor,uint32_t key,Row* row){
 void printPrompt(){printf("db >");}
 void printRow(Row* row){
     printf("(%d, %s, %s)\n",row->id,row->username,row->email);
+}
+
+void printLeafNode(void* node){
+    uint32_t numCells = *leafNodeNumCells(node);
+    printf("leaf (size %d)\n",numCells);
+    for(uint32_t i=0;i<numCells;i++){
+        uint32_t key = *leafNodeKey(node,i);
+        printf("  - %d : %d\n", i, key);
+    }
 }
 
 size_t getLine(char **lineptr, size_t *n, FILE *stream) {
@@ -500,14 +511,14 @@ MetaCommandResult doMetaCommand(InputBuffer* inputBuffer,Table* table){
         dbClose(table);
         exit(EXIT_SUCCESS);
     }
-    else if(strcmp(inputBuffer->buffer,".constants")){
+    else if(strcmp(inputBuffer->buffer,".constants")==0){
         printf("Constants:\n");
         print_constants();
         return META_COMMAND_SUCCESS;
     }
-    else if(strcmp(inputBuffer->buffer,".btree")){
+    else if(strcmp(inputBuffer->buffer,".btree")==0){
         printf("Tree:\n");
-        printLeafNode(get_page(table->pager, 0));
+        printLeafNode(getPage(table->pager, 0));
         return META_COMMAND_SUCCESS;
     }
     else{
