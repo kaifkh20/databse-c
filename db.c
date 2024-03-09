@@ -333,20 +333,25 @@ Cursor* tableStart(Table* table){
     return cursor;
 }
 
-Cursor* tableEnd(Table* table){
-    Cursor* cursor = malloc(sizeof(Cursor));
-    cursor->table = table;
-    // cursor->row_num = table->num_rows;
-    cursor->pageNum = table->rootPageNum;
+// Cursor* tableEnd(Table* table){
+//     Cursor* cursor = malloc(sizeof(Cursor));
+//     cursor->table = table;
+//     // cursor->row_num = table->num_rows;
+//     cursor->pageNum = table->rootPageNum;
 
-    void* rootNode = getPage(table->pager,table->rootPageNum);
-    uint32_t numCells = *leafNodeNumCells(rootNode);
-    cursor->cellNum = numCells;
-    cursor->endOfTable = true;
+//     void* rootNode = getPage(table->pager,table->rootPageNum);
+//     uint32_t numCells = *leafNodeNumCells(rootNode);
+//     cursor->cellNum = numCells;
+//     cursor->endOfTable = true;
 
-    return cursor;
+//     return cursor;
+// }
+
+// Returns the position 
+
+Cursor* tableFind(Table* table,uint32_t key){
+    
 }
-
 
 void serializeRow(Row* source,void* dest){
     memcpy(dest+ID_OFFSET,&(source->id),ID_SIZE);
@@ -579,14 +584,24 @@ ExecuteResult executeInsert(Statement* statement,Table* table){
     // }
 
     void* node = getPage(table->pager,table->rootPageNum);
-    if((*leafNodeNumCells(node))>=LEAF_NODE_MAX_CELLS){
+    uint32_t numCells = (*leafNodeNumCells(node));
+    if((numCells>=LEAF_NODE_MAX_CELLS)){
         return EXECUTE_TABLE_FULL;
     }
 
     Row* rowToInsert = &(statement->rowToInsert);
-    Cursor* cursor = tableEnd(table);
+    // Cursor* cursor = tableEnd(table);
     // serializeRow(rowToInsert, cursorValue(cursor));
     // table->num_rows++;
+
+    uint32_t keyToInsert = rowToInsert->id;
+    Cursor* cursor = tableFind(table,keyToInsert);
+    if(cursor->cellNum < numCells){
+        uint32_t keyAtIndex = (*leafNodeKey(node,cursor->cellNum));
+        if(keyAtIndex==keyToInsert){
+            return EXACT_DUPLICATE_KEY;
+        }
+    }
 
     leafNodeInsert(cursor,rowToInsert->id,rowToInsert);
 
