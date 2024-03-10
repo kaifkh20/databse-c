@@ -46,7 +46,8 @@ typedef enum { STATEMENT_INSERT, STATEMENT_SELECT } StatementType;
 
 typedef enum{
     EXECUTE_SUCCESS,
-    EXECUTE_TABLE_FULL
+    EXECUTE_TABLE_FULL,
+    EXECUTE_DUPLICATE_KEY
 } ExecuteResult;
 
 typedef enum{
@@ -106,7 +107,7 @@ const uint32_t PAGE_SIZE = 4096;
 // Common Node Layout
 
 const uint32_t NODE_TYPE_SIZE  = sizeof(uint8_t);
-const uint32_t NODE_OFFSET = 0;
+const uint32_t NODE_TYPE_OFFSET = 0;
 const uint32_t IS_ROOT_SIZE = sizeof(uint8_t);
 const uint32_t IS_ROOT_OFFSET = NODE_TYPE_SIZE;
 const uint32_t PARENT_POINTER_SIZE = sizeof(uint32_t);
@@ -156,6 +157,7 @@ uint32_t* leafNodeValue(void* node,uint32_t cell_num){
 }
 
 void initializeLeafNode(void* node){
+    setNodeType(node,NODE_LEAF);
     *leafNodeNumCells(node) = 0;
 }
 
@@ -349,8 +351,57 @@ Cursor* tableStart(Table* table){
 
 // Returns the position 
 
+Cursor* leafNodeFind(Table* table,uint32_t pageNum,uint32_t key){
+    void* node = getPage(table->pager,pageNum);
+    uint32_t numCells = *leafNodeNumCells(node);
+
+    Cursor* cursor = malloc(sizeof(Cursor));
+    cursor->table = table;
+    cursor->pageNum = pageNum;
+
+    // Binary Search 
+    uint32_t minIndex =0;
+    uint32_t onePastMaxIndex  = numCells;
+
+    while(minIndex!=onePastMaxIndex){
+        uint32_t index = (minIndex+onePastMaxIndex)/2;
+        uint32_t keyAtIndex = *leafNodeKey(node,index);
+        if(key==keyAtIndex){
+            cursor->cellNum = index;
+            return cursor;
+        }
+        if(key < keyAtIndex){
+            onePastMaxIndex = index;
+        }else{
+            minIndex+=1;
+        }
+    }
+
+    cursor->cellNum = minIndex;
+    return  cursor;
+
+}
+
+NodeType getNodeType(void* node){
+    uint8_t value = *((uint8_t*)(node+NODE_TYPE_OFFSET));
+    return (NodeType)value;
+}
+
+void setNodeType(void* node,NodeType type){
+    uint8_t value = type;
+    *((uint8_t*)(node+NODE_TYPE_OFFSET)) = value;
+}
+
 Cursor* tableFind(Table* table,uint32_t key){
-    
+    uint32_t rootPageNum = table->rootPageNum;
+    void* rootNode = getPage(table->pager,rootPageNum);
+
+    if(getNodeType(rootNode)==NODE_LEAF){
+        return leafNodeFind(table,rootPageNum,key);
+    }else{
+        printf("Need to implement internal node.\n");
+        exit(EXIT_FAILURE);
+    }
 }
 
 void serializeRow(Row* source,void* dest){
@@ -599,7 +650,7 @@ ExecuteResult executeInsert(Statement* statement,Table* table){
     if(cursor->cellNum < numCells){
         uint32_t keyAtIndex = (*leafNodeKey(node,cursor->cellNum));
         if(keyAtIndex==keyToInsert){
-            return EXACT_DUPLICATE_KEY;
+            return EXECUTE_DUPLICATE_KEY;
         }
     }
 
@@ -690,7 +741,10 @@ int main(int argc, char* argv[]){
                 printf("Executed.\n");
                 break;
             case(EXECUTE_TABLE_FULL):
-                printf("Error :Table FUll \n");
+                printf("Error :Table Full \n");
+                break;
+            case(EXECUTE_DUPLICATE_KEY):
+                printf("Error: Duplicate Key.\n");
                 break;
         }
     }

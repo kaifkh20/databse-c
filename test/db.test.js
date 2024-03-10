@@ -175,6 +175,28 @@ test("Printing the structure of one node",async()=>{
     )
 })
 
+test("Prints Error if there is a duplicate key",async()=>{
+    const commands = [
+        "insert 1 user1 person1@example.com",
+        "insert 1 user1 person1@example.com",
+        "select",
+        ".exit"
+    ]
+
+    const output = await runScript(commands)
+    const result = output.split("\n")
+
+    expect(result).toEqual(
+        [
+            "db >Executed.",
+            "db >Error: Duplicate Key.",
+            "db >(1, user1, person1@example.com)",
+            "Executed.",
+            "db >",
+        ]
+    )
+})
+
 test("2+2",()=>{
     expect(2+2).toBe(4)
 })
