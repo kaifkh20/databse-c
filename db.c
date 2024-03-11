@@ -130,6 +130,8 @@ const uint32_t LEAF_NODE_CELL_SIZE = LEAF_NODE_KEY_SIZE + LEAF_NODE_VALUE_SIZE;
 const uint32_t LEAF_NODE_SPACE_FOR_CELLS = PAGE_SIZE - LEAF_NODE_HEADER_SIZE;
 const uint32_t LEAF_NODE_MAX_CELLS = LEAF_NODE_SPACE_FOR_CELLS / LEAF_NODE_CELL_SIZE;
 
+const uint32_t LEAF_NODE_LEFT_SPLIT_COUNT = (LEAF_NODE_MAX_CELLS + 1)/2;
+const uint32_t LEAF_NODE_RIGHT_SPLIT_COUNT = (LEAF_NODE_MAX_CELLS + 1) - LEAF_NODE_LEFT_SPLIT_COUNT;
 
 void print_constants() {
   printf("ROW_SIZE: %d\n", ROW_SIZE);
@@ -456,6 +458,73 @@ void cursorAdvance(Cursor* cursor){
     }
 }
 
+void createNewRoot(Table* table,uint32_t rightChildPageNum){
+      /*
+  Handle splitting the root.
+  Old root copied to new page, becomes left child.
+  Address of right child passed in.
+  Re-initialize root page to contain the new root node.
+  New root node points to two children.
+  */
+
+    void* root = getPage(table->pager,table->rootPageNum);
+    void* rightChild = getPage(table->pager,rightChildPageNum);
+    uint32_t leftChildPageNum = getUnusedPageNum(table->pager);
+    void* leftChild = getPage(table->pager,leftChildPageNum);
+
+    // Copy data from root to left
+    memcpy(leftChild,root,PAGE_SIZE);
+    setNodeRoot(leftChild,false);
+
+    initializeInternalNode(root);
+    setNodeRoot(root,true);
+    *internalNodeNumKeys(root) = 1;
+    *internalNodeChild(root,0) = leftChildPageNum;
+    uint32_t leftChildMaxKey = getNodeMaxKey(leftChild);
+    *internalNodeKey(root,0) = leftChildMaxKey;
+    *internalNodeRightChild(root) = rightChildPageNum;  
+}
+
+uint32_t getUnusedPageNum(Pager* pager){
+    return pager->numPages;
+}
+
+void leafNodeSplitAndInsert(Cursor* cursor,uint32_t key,Row* row){
+    void* oldNode = getPage(cursor->table->pager,cursor->pageNum);
+    uint32_t newPageNum = getUnusedPageNum(cursor->table->pager);
+    void* newNode = getPage(cursor->table->pager,newPageNum);
+    initializeLeafNode(newNode);
+
+    for(int32_t i=LEAF_NODE_MAX_CELLS;i>=0;--i){
+        void* desitnationNode;
+        if(i>=LEAF_NODE_LEFT_SPLIT_COUNT){
+            desitnationNode = newNode;
+        }else{
+            desitnationNode = oldNode;
+        }
+        uint32_t indexWithinThatNode = i % LEAF_NODE_LEFT_SPLIT_COUNT;
+        void* desitnation = leafNodeCell(desitnationNode,indexWithinThatNode);
+
+        if(i==cursor->cellNum){
+            serializeRow(row,desitnation);
+        }else if(i > cursor->cellNum){
+            memcpy(desitnation,leafNodeCell(oldNode,i-1),LEAF_NODE_CELL_SIZE);
+        }else{
+            memcpy(desitnation,leafNodeCell(oldNode,i),LEAF_NODE_CELL_SIZE);
+        }
+    }
+
+    // Update cell count on both leaf node
+    *(leafNodeNumCells(oldNode)) = LEAF_NODE_LEFT_SPLIT_COUNT;
+    *(leafNodeNumCells(newNode)) = LEAF_NODE_RIGHT_SPLIT_COUNT;
+
+    if(isNodeRoot(oldNode)){
+        return creatNewRoot(cursor->table,newPageNum);
+    }else{
+        printf("Need to implement update after parent split.\n");
+        exit(EXIT_FAILURE);
+    }
+}
 
 void leafNodeInsert(Cursor* cursor,uint32_t key,Row* row){
     void* node = getPage(cursor->table->pager,cursor->pageNum);
@@ -463,8 +532,8 @@ void leafNodeInsert(Cursor* cursor,uint32_t key,Row* row){
     // 
     if(numCells>=LEAF_NODE_MAX_CELLS){
         // Node full
-        printf("Need to implementing splitting a leaf.\n");
-        exit(EXIT_FAILURE);
+       leafNodeSplitAndInsert(cursor,key,row);
+        return ;
     }
 
     if(cursor->cellNum < numCells){
